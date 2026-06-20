@@ -3,8 +3,8 @@ import pandas as pd
 import streamlit as st
 
 from preprocessing import CreditScorePreprocessor
-preprocessor = CreditScorePreprocessor.load_preprocessor("artifacts/preprocessor.pkl")
-model = joblib.load("artifacts/best_model.pkl")
+preprocessor = CreditScorePreprocessor.load_preprocessor("preprocessor.pkl")
+model = joblib.load("best_model.pkl")
 
 st.set_page_config(
     page_title="Credit Score Prediction",
