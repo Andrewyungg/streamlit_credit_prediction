@@ -4,7 +4,7 @@ import streamlit as st
 
 from preprocessing import CreditScorePreprocessor
 preprocessor = CreditScorePreprocessor.load_preprocessor("preprocessor.pkl")
-model = joblib.load("best_model.pkl")
+model = joblib.load("xgboost.pkl")
 
 st.set_page_config(
     page_title="Credit Score Prediction",
