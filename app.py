@@ -1,10 +1,113 @@
 import joblib
+import numpy as np
 import pandas as pd
 import streamlit as st
 
 
-preprocessor = CreditScorePreprocessor.load_preprocessor("preprocessor.pkl")
-model = joblib.load("xgboost.pkl")
+preprocessor = joblib.load("artifacts/preprocessor.pkl")
+model = joblib.load("artifacts/best_model.pkl")
+
+def credit_age_to_months(x):
+    years = int(x.split("Years")[0].strip())
+    months = int(x.split("and")[1].split("Months")[0].strip())
+    return years * 12 + months
+
+
+def transform(df, preprocessor):
+
+    df = df.copy()
+
+    df["Credit_History_Age"] = df["Credit_History_Age"].apply(
+        credit_age_to_months
+    )
+
+    df.drop(
+        columns=[
+            "Unnamed: 0",
+            "ID",
+            "Customer_ID",
+            "Name",
+            "SSN",
+            "Credit_Score",
+        ],
+        errors="ignore",
+        inplace=True,
+    )
+
+    # Loan Features
+    for loan in preprocessor["loan_types"]:
+        df[loan.replace(" ", "_").replace("-", "_")] = (
+            df["Type_of_Loan"]
+            .fillna("")
+            .str.contains(loan, case=False, regex=False)
+            .astype(int)
+        )
+
+    if "Type_of_Loan" in df.columns:
+        df.drop(columns="Type_of_Loan", inplace=True)
+
+    # Numeric Conversion
+    for col in preprocessor["numeric_columns"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(
+                df[col]
+                .astype(str)
+                .str.replace(r"[^0-9.-]", "", regex=True),
+                errors="coerce",
+            )
+
+    # Missing Values
+    for col, median in preprocessor["median_values"].items():
+        if col in df.columns:
+            df[col] = df[col].fillna(median)
+
+    for col, mode in preprocessor["mode_values"].items():
+        if col in df.columns:
+            df[col] = df[col].fillna(mode)
+
+    # IQR Capping
+    for col, bounds in preprocessor["iqr_bounds"].items():
+        if col in df.columns:
+            df[col] = np.where(
+                df[col] < bounds["lower"],
+                bounds["lower"],
+                np.where(
+                    df[col] > bounds["upper"],
+                    bounds["upper"],
+                    df[col],
+                ),
+            )
+
+    # Ordinal Encoding
+    df[preprocessor["ordinal_columns"]] = (
+        preprocessor["ordinal_encoder"].transform(
+            df[preprocessor["ordinal_columns"]]
+        )
+    )
+
+    # One Hot Encoding
+    encoded = preprocessor["onehot_encoder"].transform(
+        df[preprocessor["nominal_columns"]]
+    )
+
+    encoded = pd.DataFrame(
+        encoded,
+        columns=preprocessor["onehot_encoder"].get_feature_names_out(
+            preprocessor["nominal_columns"]
+        ),
+        index=df.index,
+    )
+
+    df.drop(columns=preprocessor["nominal_columns"], inplace=True)
+
+    df = pd.concat([df, encoded], axis=1)
+
+    df = df.reindex(
+        columns=preprocessor["feature_columns"],
+        fill_value=0,
+    )
+
+    return df
 
 st.set_page_config(
     page_title="Credit Score Prediction",
@@ -225,7 +328,7 @@ if st.button("Predict Credit Score"):
         "Monthly_Balance": monthly_balance,
     }])
 
-    X = preprocessor.transform(data)
+    X = transform(data, preprocessor)
     prediction = model.predict(X)
-    label = preprocessor.label_encoder.inverse_transform(prediction)
+    label = preprocessor["label_encoder"].inverse_transform(prediction)
     st.success(f"Predicted Credit Score : **{label[0]}**")
