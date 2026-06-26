@@ -4,8 +4,8 @@ import pandas as pd
 import streamlit as st
 
 
-preprocessor = joblib.load("artifacts/preprocessor.pkl")
-model = joblib.load("artifacts/best_model.pkl")
+preprocessor = joblib.load("preprocessor.pkl")
+model = joblib.load("xgboost.pkl")
 
 def credit_age_to_months(x):
     years = int(x.split("Years")[0].strip())
