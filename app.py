@@ -2,7 +2,7 @@ import joblib
 import pandas as pd
 import streamlit as st
 
-from preprocessing import CreditScorePreprocessor
+
 preprocessor = CreditScorePreprocessor.load_preprocessor("preprocessor.pkl")
 model = joblib.load("xgboost.pkl")
 
