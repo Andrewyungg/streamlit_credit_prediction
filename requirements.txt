@@ -1,5 +1,4 @@
 mlflow==3.9.0
-optuna==4.6.0
 streamlit==1.55.0
 pandas==2.3.3
 numpy==1.26.4
